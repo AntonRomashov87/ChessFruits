@@ -625,30 +625,37 @@ function ensureAudio(){
 }
 
 // ══════════════════════════════════════════════════════
-// SPEECH SYNTHESIS — озвучення нотації (a1, e4 тощо)
+// SPEECH SYNTHESIS — озвучення нотації мовою інтерфейсу
+// Викликається ТІЛЬКИ при кліку на клітинку
 // ══════════════════════════════════════════════════════
+const UK_LETTERS={'a':'а','b':'бе','c':'це','d':'де','e':'е','f':'еф','g':'же','h':'аш'};
+const UK_NUMBERS={'1':'один','2':'два','3':'три','4':'чотири','5':'пять','6':'шість','7':'сім','8':'вісім'};
+
 function speakNotation(notation){
   if(!soundOn) return;
   if(!window.speechSynthesis) return;
-  // Зупиняємо попередні промовляння
   window.speechSynthesis.cancel();
-  // Вимовляємо букву і цифру окремо — щоб звучало чітко
-  const letter = notation[0]; // a–h
-  const num    = notation[1]; // 1–8
-  // Перша utterance: буква
-  const u1 = new SpeechSynthesisUtterance(letter);
-  u1.lang  = 'en-US';
-  u1.rate  = 0.85;
-  u1.pitch = 1.1;
-  u1.volume= 0.9;
-  // Друга utterance: цифра
-  const u2 = new SpeechSynthesisUtterance(num);
-  u2.lang  = 'en-US';
-  u2.rate  = 0.85;
-  u2.pitch = 1.0;
-  u2.volume= 0.9;
-  window.speechSynthesis.speak(u1);
-  window.speechSynthesis.speak(u2);
+
+  const letter=notation[0]; // a–h
+  const num=notation[1];    // 1–8
+  let text, langCode;
+
+  if(lang==='uk'){
+    // Вимовляємо по-українськи: "е чотири", "а один"
+    text=(UK_LETTERS[letter]||letter)+' '+(UK_NUMBERS[num]||num);
+    langCode='uk-UA';
+  } else {
+    // English: "e 4", "a 1" — окремі слова для кращої вимови
+    text=letter+' '+num;
+    langCode='en-US';
+  }
+
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang=langCode;
+  u.rate=0.8;
+  u.pitch=1.1;
+  u.volume=0.95;
+  window.speechSynthesis.speak(u);
 }
 
 // ══════════════════════════════════════════════════════
@@ -833,8 +840,6 @@ function setupMode1(){
   const[tf,tr]=sqs[rnd(sqs.length)];const tnot=FILES[tf]+(tr+1);
   puzzle={mode:1,tf,tr,tfruit:fMap[key(tf,tr)],tnot};
   setInstr(T('m1instr',fMap[key(tf,tr)],tnot));
-  // Озвучуємо цільову клітинку при старті завдання
-  setTimeout(()=>speakNotation(tnot), 400);
   setFb('');
 }
 function handleM1(f,r){
