@@ -292,7 +292,7 @@ body{
     <p id="modalMsg"></p>
     <div class="modal-btns">
       <button class="btn-restart" onclick="restartGame()">🔄 <span data-key="again">Ще раз!</span></button>
-      <button class="btn-cancel" onclick="closeModal()">✕</button>
+      <button class="btn-cancel" onclick="restartGame()">✕</button>
     </div>
   </div>
 </div>
@@ -323,9 +323,9 @@ const LANG = {
     m2instr:(sym,name,sq)=>`<span class="hi">${sym}</span> <b>${name}</b> на <span class="gold">${sq}</span> — Клікай куди ходити і збери всі фрукти! 🍎`,
     m2click:(sym)=>`${sym} Клікай виділені клітинки!`,
     m2wrong:'❌ Фігура так не ходить!',
-    m2status:(fr,pts,eaten,total,moves)=>`${fr} +${pts}⭐  Зібрано: ${eaten}/${total}  (ходів: ${moves})`,
+    m2status:(fr,pts,eaten,total,moves)=>`${fr} +${pts}⭐ Зібрано: ${eaten}/${total} (ходів: ${moves})`,
     m2left:(n)=>`Ходи далі! Залишилось: ${n} 🍎`,
-    m2done:(str,bonus)=>`🎉 Всі фрукти! ${str}  +${bonus} бонус!`,
+    m2done:(str,bonus)=>`🎉 Всі фрукти! ${str} +${bonus} бонус!`,
     starsTitle:'Зібрано всі фрукти!',
     starsWasted0:'0 зайвих ходів 🎯',
     starsWasted:(n)=>`${n} зайвих ${n===1?'хід':'ходів'}`,
@@ -376,9 +376,9 @@ const LANG = {
     m2instr:(sym,name,sq)=>`<span class="hi">${sym}</span> <b>${name}</b> on <span class="gold">${sq}</span> — Click to move and collect all fruits! 🍎`,
     m2click:(sym)=>`${sym} Click the highlighted squares!`,
     m2wrong:'❌ The piece can\'t move there!',
-    m2status:(fr,pts,eaten,total,moves)=>`${fr} +${pts}⭐  Collected: ${eaten}/${total}  (moves: ${moves})`,
+    m2status:(fr,pts,eaten,total,moves)=>`${fr} +${pts}⭐ Collected: ${eaten}/${total} (moves: ${moves})`,
     m2left:(n)=>`Keep moving! Left: ${n} 🍎`,
-    m2done:(str,bonus)=>`🎉 All fruits! ${str}  +${bonus} bonus!`,
+    m2done:(str,bonus)=>`🎉 All fruits! ${str} +${bonus} bonus!`,
     starsTitle:'All fruits collected!',
     starsWasted0:'0 wasted moves 🎯',
     starsWasted:(n)=>`${n} wasted ${n===1?'move':'moves'}`,
@@ -425,7 +425,8 @@ function applyLang(){
     const k=el.dataset.key;
     if(L[k]) el.textContent=L[k];
   });
-  if(puzzle.mode) nextPuzzle();
+  // Завжди перезапускаємо пазл — щоб текст оновився мовою
+  nextPuzzle();
 }
 
 function toggleLang(){
@@ -439,9 +440,8 @@ function toggleLang(){
 // ══════════════════════════════════════════════════════
 let audioCtx=null;
 let soundOn=true,musicOn=true;
-let musicTimeout=null,musicStep=0,musicRunning=false;
-
-// Upbeat chip-tune melody: two-octave arpeggiated pattern
+let musicRunning=false;
+let bassStep=0;
 const MELODY=[
   [523,120],[659,120],[784,120],[1047,180],[784,80],[659,80],[523,180],[0,80],
   [587,120],[740,120],[880,120],[1175,180],[880,80],[740,80],[587,180],[0,80],
@@ -458,7 +458,6 @@ const BASSLINE=[
   [175,440],[0,220],[131,220],[0,220],
   [110,220],[0,220],[131,220],[0,220],
 ];
-let bassStep=0;
 
 function getCtx(){
   if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -579,24 +578,35 @@ function snd(name){
   }
 }
 
-// ── Music: 2-voice chip-tune (melody + bass) ──
-function playMusicTick(){
+// ── Music: 2 independent voices — melody + bass ──
+let melodyTimeout=null, melodyStep=0;
+let bassTimeout2=null;  // renamed to avoid collision with bassStep var
+
+function playMelody(){
   if(!musicRunning||!musicOn) return;
-  const[mf,md]=MELODY[musicStep%MELODY.length];
-  const[bf,bd]=BASSLINE[bassStep%BASSLINE.length];
-  if(mf>0) tone(mf,(md-30)/1000,'square',0.055);
-  if(bf>0) tone(bf,(bd-30)/1000,'triangle',0.08);
-  const shortest=Math.min(md,bd);
-  // Advance whichever line moves by this tick
-  musicStep++;
-  bassStep=Math.floor(musicStep*BASSLINE.length/MELODY.length);
-  musicTimeout=setTimeout(playMusicTick,shortest);
+  const[freq,dur]=MELODY[melodyStep%MELODY.length];
+  if(freq>0) tone(freq,Math.max(0.02,(dur-25)/1000),'square',0.055);
+  melodyStep++;
+  melodyTimeout=setTimeout(playMelody,dur);
+}
+function playBassLine(){
+  if(!musicRunning||!musicOn) return;
+  const[freq,dur]=BASSLINE[bassStep%BASSLINE.length];
+  if(freq>0) tone(freq,Math.max(0.02,(dur-25)/1000),'triangle',0.07);
+  bassStep++;
+  bassTimeout2=setTimeout(playBassLine,dur);
 }
 function startMusic(){
   if(musicRunning||!musicOn) return;
-  musicRunning=true;musicStep=0;bassStep=0;playMusicTick();
+  musicRunning=true;melodyStep=0;bassStep=0;
+  playMelody();
+  setTimeout(playBassLine,60); // bass starts 60ms after melody for slight groove
 }
-function stopMusic(){musicRunning=false;if(musicTimeout)clearTimeout(musicTimeout)}
+function stopMusic(){
+  musicRunning=false;
+  if(melodyTimeout) clearTimeout(melodyTimeout);
+  if(bassTimeout2) clearTimeout(bassTimeout2);
+}
 function toggleSound(){
   soundOn=!soundOn;
   const b=document.getElementById('soundBtn');
@@ -612,6 +622,33 @@ function toggleMusic(){
 function ensureAudio(){
   getCtx();
   if(!musicRunning&&musicOn) startMusic();
+}
+
+// ══════════════════════════════════════════════════════
+// SPEECH SYNTHESIS — озвучення нотації (a1, e4 тощо)
+// ══════════════════════════════════════════════════════
+function speakNotation(notation){
+  if(!soundOn) return;
+  if(!window.speechSynthesis) return;
+  // Зупиняємо попередні промовляння
+  window.speechSynthesis.cancel();
+  // Вимовляємо букву і цифру окремо — щоб звучало чітко
+  const letter = notation[0]; // a–h
+  const num    = notation[1]; // 1–8
+  // Перша utterance: буква
+  const u1 = new SpeechSynthesisUtterance(letter);
+  u1.lang  = 'en-US';
+  u1.rate  = 0.85;
+  u1.pitch = 1.1;
+  u1.volume= 0.9;
+  // Друга utterance: цифра
+  const u2 = new SpeechSynthesisUtterance(num);
+  u2.lang  = 'en-US';
+  u2.rate  = 0.85;
+  u2.pitch = 1.0;
+  u2.volume= 0.9;
+  window.speechSynthesis.speak(u1);
+  window.speechSynthesis.speak(u2);
 }
 
 // ══════════════════════════════════════════════════════
@@ -696,6 +733,55 @@ function getAttacks(piece,f,r){
 const attacks=(piece,pf,pr,tf,tr)=>getAttacks(piece,pf,pr).some(([f,r])=>f===tf&&r===tr);
 
 // ══════════════════════════════════════════════════════
+// БЛОКОВАНІ ХОДИ — фігури не проходять крізь перешкоди
+// occupied: Set<key(f,r)> — зайняті клітинки (фрукти, фігури)
+// ══════════════════════════════════════════════════════
+function getMovesBlocked(piece,pf,pr,occupied){
+  const m=[];
+  const add=(nf,nr)=>{if(nf>=0&&nf<8&&nr>=0&&nr<8)m.push([nf,nr])};
+  // Лінійне ковзання — зупиняємось коли зустріли перешкоду (але саму її клітинку додаємо — можна взяти)
+  const slide=(df,dr)=>{
+    let nf=pf+df,nr=pr+dr;
+    while(nf>=0&&nf<8&&nr>=0&&nr<8){
+      m.push([nf,nr]);
+      if(occupied.has(key(nf,nr))) break; // можна взяти цей фрукт, але далі шлях закрито
+      nf+=df;nr+=dr;
+    }
+  };
+  switch(piece){
+    case'knight':[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([a,b])=>add(pf+a,pr+b));break;
+    case'bishop':[[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([a,b])=>slide(a,b));break;
+    case'rook':  [[-1,0],[1,0],[0,-1],[0,1]].forEach(([a,b])=>slide(a,b));break;
+    case'queen': [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([a,b])=>slide(a,b));break;
+    case'king':  [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([a,b])=>add(pf+a,pr+b));break;
+    case'pawn':
+      // Вперед: тільки якщо клітинка вільна
+      if(pr+1<8&&!occupied.has(key(pf,pr+1))){
+        m.push([pf,pr+1]);
+        if(pr===1&&!occupied.has(key(pf,pr+2))) m.push([pf,pr+2]); // два кроки зі старту
+      }
+      // Взяття по діагоналі: тільки якщо там є фрукт
+      if(pf>0&&pr+1<8&&occupied.has(key(pf-1,pr+1))) m.push([pf-1,pr+1]);
+      if(pf<7&&pr+1<8&&occupied.has(key(pf+1,pr+1))) m.push([pf+1,pr+1]);
+      break;
+  }
+  return m;
+}
+
+// Атаки з блокуванням (пішак атакує по діагоналі завжди, незалежно від наявності фрукта)
+function getAttacksBlocked(piece,pf,pr,occupied){
+  if(piece==='pawn'){
+    const m=[];
+    if(pf>0&&pr+1<8) m.push([pf-1,pr+1]);
+    if(pf<7&&pr+1<8) m.push([pf+1,pr+1]);
+    return m;
+  }
+  return getMovesBlocked(piece,pf,pr,occupied);
+}
+// Чи атакує piece з (pf,pr) клітинку (tf,tr) з урахуванням перешкод
+const attacksB=(piece,pf,pr,tf,tr,occ)=>getAttacksBlocked(piece,pf,pr,occ).some(([f,r])=>f===tf&&r===tr);
+
+// ══════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════
 const rnd=n=>Math.floor(Math.random()*n);
@@ -746,15 +832,23 @@ function setupMode1(){
   sqs.forEach(([f,r])=>{const fr=rf();fMap[key(f,r)]=fr;setContent(f,r,'<span class="fruit-sym">'+fr+'</span>')});
   const[tf,tr]=sqs[rnd(sqs.length)];const tnot=FILES[tf]+(tr+1);
   puzzle={mode:1,tf,tr,tfruit:fMap[key(tf,tr)],tnot};
-  setInstr(T('m1instr',fMap[key(tf,tr)],tnot));setFb('');
+  setInstr(T('m1instr',fMap[key(tf,tr)],tnot));
+  // Озвучуємо цільову клітинку при старті завдання
+  setTimeout(()=>speakNotation(tnot), 400);
+  setFb('');
 }
 function handleM1(f,r){
   const{tf,tr,tfruit,tnot}=puzzle;
   if(f===tf&&r===tr){
     cls(f,r,'correct');const pts=10+streak*2;score+=pts;streak++;updateUI();snd('correct');
-    setFb(T('m1ok',tfruit,tnot,pts),'good');setTimeout(nextPuzzle,1100);
+    // Озвучуємо знайдену клітинку
+    speakNotation(tnot);
+    setFb(T('m1ok',tfruit,tnot,pts),'good');setTimeout(nextPuzzle,1300);
   } else {
-    cls(f,r,'wrong');streak=0;loseLife();snd('wrong');
+    cls(f,r,'wrong');streak=0;loseLife();
+    if(!active) return; // гра закінчена — далі не виконуємо
+    snd('wrong');
+    speakNotation(FILES[f]+(r+1));
     setFb(T('m1fail',FILES[f]+(r+1),tnot),'bad');setTimeout(()=>uncls(f,r,'wrong'),500);
   }
 }
@@ -762,8 +856,10 @@ function handleM1(f,r){
 function showMoves2(){
   for(let f=0;f<8;f++) for(let r=0;r<8;r++){uncls(f,r,'valid-dot');uncls(f,r,'valid-ring')}
   const{piece,pieceF,pieceR,fMap}=puzzle;
-  getMoves(piece,pieceF,pieceR).forEach(([f,r])=>{
-    if(fMap[key(f,r)]) cls(f,r,'valid-ring'); else cls(f,r,'valid-dot');
+  const occupied=new Set(Object.keys(fMap)); // фрукти є перешкодами
+  getMovesBlocked(piece,pieceF,pieceR,occupied).forEach(([f,r])=>{
+    if(fMap[key(f,r)]) cls(f,r,'valid-ring'); // фрукт — можна взяти
+    else cls(f,r,'valid-dot');                 // порожня доступна клітинка
   });
 }
 function setupMode2(){
@@ -781,7 +877,8 @@ function setupMode2(){
 function handleM2(f,r){
   const{piece,pieceF,pieceR,fMap,fruitsLeft,total}=puzzle;
   if(f===pieceF&&r===pieceR){snd('select');setFb(T('m2click',PIECES[piece].sym),'neutral');return}
-  const isValid=getMoves(piece,pieceF,pieceR).some(([vf,vr])=>vf===f&&vr===r);
+  const occupied=new Set(Object.keys(fMap)); // фрукти блокують
+  const isValid=getMovesBlocked(piece,pieceF,pieceR,occupied).some(([vf,vr])=>vf===f&&vr===r);
   if(!isValid){snd('wrong');streak=0;updateUI();setFb(T('m2wrong'),'bad');cls(f,r,'wrong');setTimeout(()=>uncls(f,r,'wrong'),450);return}
   snd('move');puzzle.movesTaken++;setMovesUI(puzzle.movesTaken);
   setContent(pieceF,pieceR,'');uncls(pieceF,pieceR,'piece-sq');
@@ -821,16 +918,48 @@ function setupMode3(){
   clearBoard();document.getElementById('movesCounter').classList.add('hidden');
   const piece=selectedPiece;const fc=2+rnd(2);
   let forkF,forkR,fruitSqs,found=false,tries=0;
-  while(!found&&tries<300){
+  while(!found&&tries<400){
     forkF=rnd(8);forkR=rnd(8);
+    // Розміщуємо fc фруктів так, щоб фігура з forkF,forkR дійсно атакувала їх
+    // і вони не блокували одне одного
     const mvs=getAttacks(piece,forkF,forkR);
-    if(mvs.length>=fc){fruitSqs=shuffle(mvs).slice(0,fc);found=true}
+    if(mvs.length>=fc){
+      const cands=shuffle(mvs).slice(0,Math.min(fc+4,mvs.length));
+      // Перебираємо комбінації fc фруктів, перевіряємо взаємне неблокування
+      let validCombo=null;
+      outer: for(let i=0;i<cands.length-fc+1;i++){
+        const combo=cands.slice(i,i+fc);
+        const occ=new Set(combo.map(([cf,cr])=>key(cf,cr)));
+        // Всі fc фруктів мають бути атаковані з forkF,forkR без блокування між ними
+        const allAttacked=combo.every(([cf,cr])=>attacksB(piece,forkF,forkR,cf,cr,occ));
+        if(allAttacked){validCombo=combo;break outer}
+      }
+      if(validCombo){fruitSqs=validCombo;found=true}
+    }
     tries++;
   }
   if(!found){nextPuzzle();return}
+
   const boardContent={};
   fruitSqs.forEach(([f,r])=>{const fr=rf();boardContent[key(f,r)]=fr;setContent(f,r,'<span class="fruit-sym">'+fr+'</span>')});
-  uniqueSquares(1+rnd(2),[...fruitSqs,[forkF,forkR]]).forEach(([f,r])=>{const fr=rf();boardContent[key(f,r)]=fr;setContent(f,r,'<span class="fruit-sym">'+fr+'</span>')});
+
+  // Додаємо декорі-фрукти: лише ті, що НЕ блокують вилку
+  const decoyPool=uniqueSquares(8,[...fruitSqs,[forkF,forkR]]);
+  let added=0;
+  for(const [df,dr] of decoyPool){
+    if(added>=2) break;
+    const testOcc=new Set(Object.keys(boardContent));
+    testOcc.add(key(df,dr));
+    // Перевіряємо: після додавання декою вилка ще працює?
+    const occ2=new Set([...testOcc]);occ2.delete(key(forkF,forkR));
+    const stillOk=fruitSqs.every(([cf,cr])=>attacksB(piece,forkF,forkR,cf,cr,occ2));
+    if(stillOk){
+      const fr=rf();boardContent[key(df,dr)]=fr;
+      setContent(df,dr,'<span class="fruit-sym">'+fr+'</span>');
+      added++;
+    }
+  }
+
   puzzle={mode:3,piece,forkF,forkR,fruitSqs,fc,boardContent,prevSel:null,prevAttacks:[],partialFound:false};
   setInstr(T('m3instr',PIECES[piece].sym,pName(piece),fc));setFb('');
 }
@@ -843,7 +972,13 @@ function handleM3(f,r){
   }
   prevAttacks.forEach(([af,ar])=>{uncls(af,ar,'valid-dot');uncls(af,ar,'valid-ring');uncls(af,ar,'correct')});
   snd('move');setContent(f,r,'<span class="piece-sym bounce">'+PIECES[piece].sym+'</span>');cls(f,r,'selected-sq');
-  const allAtks=getAttacks(piece,f,r);const hit=fruitSqs.filter(([ff,fr])=>attacks(piece,f,r,ff,fr));
+
+  // Будуємо зайняті клітинки: всі фрукти КРІМ клітинки куди ставимо фігуру
+  const occ=new Set(Object.keys(boardContent));
+  occ.delete(key(f,r));
+
+  const allAtks=getAttacksBlocked(piece,f,r,occ);
+  const hit=fruitSqs.filter(([ff,fr])=>attacksB(piece,f,r,ff,fr,occ));
   puzzle.prevSel=key(f,r);puzzle.prevAttacks=allAtks;
   allAtks.forEach(([af,ar])=>{
     if(af===f&&ar===r) return;
@@ -861,7 +996,7 @@ function handleM3(f,r){
     hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));setFb(T('m3partial2',hit.length,fc),'neutral');
   } else if(hit.length===1){
     hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));streak=0;updateUI();snd('wrong');setFb(T('m3one'),'bad');
-  } else {streak=0;loseLife();snd('wrong');setFb(T('m3none'),'bad')}
+  } else {streak=0;loseLife();if(!active)return;snd('wrong');setFb(T('m3none'),'bad')}
 }
 // MODE 4
 function setupMode4(){
@@ -881,7 +1016,8 @@ function handleM4(f,r){
     const pts=15+streak*3;score+=pts;streak++;updateUI();snd('check');
     setFb(T('m4check',PIECES[piece].sym,FILES[f]+(r+1),pts),'good');setTimeout(nextPuzzle,1700);
   } else {
-    streak=0;loseLife();snd('wrong');setFb(T('m4miss',FILES[f]+(r+1)),'bad');
+    streak=0;loseLife();if(!active)return;snd('wrong');
+    setFb(T('m4miss',FILES[f]+(r+1)),'bad');
     cls(f,r,'wrong');setTimeout(()=>uncls(f,r,'wrong'),500);
   }
 }
@@ -912,7 +1048,8 @@ function handleM5(f,r){
     if(puzzle.safePicked>=totalSafe){setFb(T('m5allsafe',fruit,pts),'good');setTimeout(nextPuzzle,1400)}
     else setFb(T('m5safe',fruit,pts),'good');
   } else {
-    cls(f,r,'wrong');streak=0;loseLife();snd('wrong');setFb(T('m5danger',fruit),'bad');setTimeout(()=>uncls(f,r,'wrong'),500);
+    cls(f,r,'wrong');streak=0;loseLife();if(!active)return;
+    snd('wrong');setFb(T('m5danger',fruit),'bad');setTimeout(()=>uncls(f,r,'wrong'),500);
   }
 }
 // MODE 6
@@ -946,13 +1083,20 @@ function handleM6(f,r){
     cls(f,r,'correct');const pts=15+streak*3;score+=pts;streak++;updateUI();snd('correct');
     setFb(T('m6free',fruit,pts),'good');setTimeout(nextPuzzle,1400);
   } else {
-    cls(f,r,'wrong');cls(gf,gr,'correct');streak=0;loseLife();snd('wrong');
-    setFb(T('m6guard',fruit,PIECES[gtype].sym),'bad');
+    cls(f,r,'wrong');cls(gf,gr,'correct');streak=0;loseLife();if(!active)return;
+    snd('wrong');setFb(T('m6guard',fruit,PIECES[gtype].sym),'bad');
     setTimeout(()=>{uncls(f,r,'wrong');uncls(gf,gr,'correct')},700);
   }
 }
-function onSquareClick(f,r){if(!active) return;ensureAudio();[handleM1,handleM2,handleM3,handleM4,handleM5,handleM6][mode-1](f,r)}
-function loseLife(){lives=Math.max(0,lives-1);updateUI();if(!lives){active=false;snd('gameOver');showGameOver()}}
+function onSquareClick(f,r){
+  if(!active){restartGame();return;} // клік на дошку при game over — рестарт
+  ensureAudio();
+  [handleM1,handleM2,handleM3,handleM4,handleM5,handleM6][mode-1](f,r);
+}
+function loseLife(){
+  lives=Math.max(0,lives-1);updateUI();
+  if(!lives){active=false;snd('gameOver');showGameOver();}
+}
 function showGameOver(){
   document.getElementById('modalTitle').textContent=T('gameOverTitle');
   document.getElementById('modalMsg').innerHTML=T('gameOverMsg',score,streak);
