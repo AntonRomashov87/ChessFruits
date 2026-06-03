@@ -147,6 +147,7 @@ body{
   border-radius:50%;pointer-events:none;z-index:1;
 }
 .sq.valid-ring{outline:4px solid #42a5f5;outline-offset:-4px}
+.sq.atk-ring{outline:3px solid rgba(255,180,0,.75);outline-offset:-3px}
 .sq.selected-sq{outline:4px solid #f9c74f;outline-offset:-4px;background:#c8e66e!important;animation:pulseGold .7s infinite alternate}
 .sq.check-sq{outline:4px solid #ff5722;outline-offset:-4px;animation:pulseRed .6s infinite alternate}
 .sq.danger-sq.light{background:rgba(220,80,80,.27)!important}
@@ -1032,7 +1033,7 @@ function handleM3(f,r){
     const pk=key(pf,pr);
     boardContent[pk]?setContent(pf,pr,'<span class="fruit-sym">'+boardContent[pk]+'</span>'):setContent(pf,pr,'');
   }
-  prevAttacks.forEach(([af,ar])=>{uncls(af,ar,'valid-dot');uncls(af,ar,'valid-ring');uncls(af,ar,'correct')});
+  prevAttacks.forEach(([af,ar])=>{uncls(af,ar,'valid-dot');uncls(af,ar,'valid-ring');uncls(af,ar,'atk-ring');uncls(af,ar,'correct')});
   snd('move');setContent(f,r,'<span class="piece-sym bounce">'+PIECES[piece].sym+'</span>');cls(f,r,'selected-sq');
 
   // Будуємо зайняті клітинки: всі фрукти КРІМ клітинки куди ставимо фігуру
@@ -1042,9 +1043,14 @@ function handleM3(f,r){
   const allAtks=getAttacksBlocked(piece,f,r,occ);
   const hit=fruitSqs.filter(([ff,fr])=>attacksB(piece,f,r,ff,fr,occ));
   puzzle.prevSel=key(f,r);puzzle.prevAttacks=allAtks;
+  // ── Підсвічуємо поля атаки ──
   allAtks.forEach(([af,ar])=>{
     if(af===f&&ar===r) return;
-    if(hit.some(([hf,hr])=>hf===af&&hr===ar)) cls(af,ar,'valid-ring');else cls(af,ar,'valid-dot');
+    const isTarget=hit.some(([hf,hr])=>hf===af&&hr===ar);
+    const hasFruit=boardContent[key(af,ar)]!==undefined;
+    if(isTarget)        cls(af,ar,'valid-ring'); // мішень — синій обрис
+    else if(hasFruit)   cls(af,ar,'atk-ring');   // декой фрукт — бурштиновий обрис (видимий!)
+    else                cls(af,ar,'valid-dot');   // порожня клітинка — синя крапка
   });
   if(hit.length>=fc){
     hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));
