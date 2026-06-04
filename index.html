@@ -109,6 +109,10 @@ body{
 .piece-selector.no-king [data-p="king"]{
   opacity:.28;pointer-events:none;filter:grayscale(1);cursor:not-allowed;
 }
+/* Режим Лабіринт: Пішак ходить лише вперед — не підходить для лабіринту */
+.piece-selector.no-pawn [data-p="pawn"]{
+  opacity:.28;pointer-events:none;filter:grayscale(1);cursor:not-allowed;
+}
 
 /* ——— INSTRUCTIONS ——— */
 .instructions{
@@ -918,12 +922,22 @@ function setMode(m){
   const ps=document.getElementById('pieceSelector');
   if(m===4){
     ps.classList.add('no-king');
+    ps.classList.remove('no-pawn');
     if(selectedPiece==='king'){
       selectedPiece='queen';
       document.querySelectorAll('.btn-piece').forEach(b=>b.classList.toggle('active',b.dataset.p==='queen'));
     }
+  } else if(m===6){
+    // Mode 6 (Лабіринт): Пішак ходить лише вперед — не підходить
+    ps.classList.add('no-pawn');
+    ps.classList.remove('no-king');
+    if(selectedPiece==='pawn'){
+      selectedPiece='knight';
+      document.querySelectorAll('.btn-piece').forEach(b=>b.classList.toggle('active',b.dataset.p==='knight'));
+    }
   } else {
     ps.classList.remove('no-king');
+    ps.classList.remove('no-pawn');
   }
   updateUI();nextPuzzle();
 }
@@ -1191,6 +1205,8 @@ function showMoves6(){
 }
 function setupMode6(){
   clearBoard();
+  // Пішак не підходить для лабіринту — ходить лише вперед
+  if(selectedPiece==='pawn') selectedPiece='knight';
   const piece=selectedPiece;
   let sf,sr,tf,tr,forbidden,minMoves=0,tries=0;
   while((minMoves<2||minMoves>9)&&tries<300){
