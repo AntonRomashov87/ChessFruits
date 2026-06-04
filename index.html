@@ -927,6 +927,14 @@ function setMode(m){
       selectedPiece='queen';
       document.querySelectorAll('.btn-piece').forEach(b=>b.classList.toggle('active',b.dataset.p==='queen'));
     }
+  } else if(m===5){
+    // Mode 5 (Безпека): Пішак б'є лише 2 клітинки — нецікавий ворог
+    ps.classList.add('no-pawn');
+    ps.classList.remove('no-king');
+    if(selectedPiece==='pawn'){
+      selectedPiece='queen';
+      document.querySelectorAll('.btn-piece').forEach(b=>b.classList.toggle('active',b.dataset.p==='queen'));
+    }
   } else if(m===6){
     // Mode 6 (Лабіринт): Пішак ходить лише вперед — не підходить
     ps.classList.add('no-pawn');
@@ -936,8 +944,7 @@ function setMode(m){
       document.querySelectorAll('.btn-piece').forEach(b=>b.classList.toggle('active',b.dataset.p==='knight'));
     }
   } else {
-    ps.classList.remove('no-king');
-    ps.classList.remove('no-pawn');
+    ps.classList.remove('no-king','no-pawn');
   }
   updateUI();nextPuzzle();
 }
@@ -1164,7 +1171,8 @@ function handleM4(f,r){
 // MODE 5
 function setupMode5(){
   clearBoard();document.getElementById('movesCounter').classList.add('hidden');
-  const types=['bishop','rook','queen','knight'];const etype=types[rnd(types.length)];
+  // БАГ-ФІКС: використовуємо selectedPiece як ворожу фігуру, а не random
+  const etype=selectedPiece;
   let ef,er;
   if(etype==='queen'){ef=rnd(2)*7;er=rnd(8)}else if(etype==='rook'){ef=rnd(8);er=rnd(2)*7}else{ef=rnd(8);er=rnd(8)}
   const atkSet=new Set(getAttacks(etype,ef,er).map(([f,r])=>key(f,r)));
