@@ -105,6 +105,10 @@ body{
 }
 .btn-piece:hover{background:rgba(255,255,255,.2);transform:scale(1.05)}
 .btn-piece.active{background:linear-gradient(135deg,#f9c74f,#ff9f1c);color:#1a3a00;border-color:transparent;box-shadow:0 3px 10px rgba(249,199,79,.4)}
+/* Режим Шах: Король не може давати шах Королю */
+.piece-selector.no-king [data-p="king"]{
+  opacity:.28;pointer-events:none;filter:grayscale(1);cursor:not-allowed;
+}
 
 /* ——— INSTRUCTIONS ——— */
 .instructions{
@@ -146,8 +150,17 @@ body{
   width:32%;height:32%;background:rgba(66,165,245,.55);
   border-radius:50%;pointer-events:none;z-index:1;
 }
-.sq.valid-ring{outline:4px solid #42a5f5;outline-offset:-4px}
-.sq.atk-ring{outline:3px solid rgba(255,180,0,.75);outline-offset:-3px}
+/* ── Кільця атаки — ::after (не залежить від overflow:hidden) ── */
+.sq.valid-ring::after{
+  content:'';position:absolute;inset:0;z-index:5;
+  pointer-events:none;box-sizing:border-box;
+  border:4px solid #42a5f5;     /* синє — МІШЕНЬ під боєм  */
+}
+.sq.atk-ring::after{
+  content:'';position:absolute;inset:0;z-index:5;
+  pointer-events:none;box-sizing:border-box;
+  border:4px solid #ff9800;     /* помаранчеве — декой під боєм */
+}
 .sq.selected-sq{outline:4px solid #f9c74f;outline-offset:-4px;background:#c8e66e!important;animation:pulseGold .7s infinite alternate}
 .sq.check-sq{outline:4px solid #ff5722;outline-offset:-4px;animation:pulseRed .6s infinite alternate}
 .sq.danger-sq.light{background:rgba(220,80,80,.27)!important}
@@ -163,6 +176,18 @@ body{
 .piece-sym.bounce{animation:pieceBounce .32s ease forwards}
 .fruit-sym{font-size:1.75em;line-height:1;animation:fruitIn .22s ease}
 .king-sym{font-size:1.65em;line-height:1}
+
+/* Fork legend */
+.fork-legend{
+  display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
+  background:rgba(0,0,0,.3);border-radius:12px;padding:7px 14px;
+  font-size:.82em;font-weight:700;color:#c8f5d0;margin-bottom:2px;
+}
+.fl-item{display:flex;align-items:center;gap:5px}
+.fl-box{width:16px;height:16px;border-radius:3px;flex-shrink:0}
+.fl-blue{border:3px solid #42a5f5;background:rgba(66,165,245,.15)}
+.fl-orange{border:3px solid #ff9800;background:rgba(255,152,0,.15)}
+.fl-dot{width:10px;height:10px;border-radius:50%;background:rgba(66,165,245,.55);flex-shrink:0}
 
 /* Stars */
 .stars-popup{
@@ -289,6 +314,12 @@ body{
 </div>
 
 <div class="feedback" id="feedback"></div>
+
+<!-- Легенда для режиму Вилка -->
+<div id="forkLegend" class="hidden fork-legend">
+  <span class="fl-item"><span class="fl-box fl-blue"></span> <span data-key="leg_target">Фрукт під боєм</span></span>
+  <span class="fl-item"><span class="fl-dot"></span> <span data-key="leg_empty">Порожнє поле</span></span>
+</div>
 <button class="btn-next" onclick="nextPuzzle()">⏭️ <span data-key="next">Далі</span></button>
 
 <div class="overlay hidden" id="overlay">
@@ -364,6 +395,7 @@ const LANG = {
     m6reach:(str,pts)=>`🍍 Дістався! ${str} +${pts}⭐`,
     m6stuck:'🤔 Застряг! Немає ходів. Спробуй ще раз.',
     starsLab:'Ананас знайдено!',
+    leg_target:'Фрукт під боєм 🔵',leg_empty:'Порожнє поле',
     starsMin:(n)=>`⚡ Мінімум: ${n} ${n===1?'хід':'ходів'}`,
     // Game over
     gameOverTitle:'💔 Гра закінчена!',
@@ -419,6 +451,7 @@ const LANG = {
     m6reach:(str,pts)=>`🍍 You made it! ${str} +${pts}⭐`,
     m6stuck:'🤔 No moves available. Try again!',
     starsLab:'Pineapple reached!',
+    leg_target:'Fruit under attack 🔵',leg_empty:'Empty square',
     starsMin:(n)=>`⚡ Minimum: ${n} ${n===1?'move':'moves'}`,
     gameOverTitle:'💔 Game Over!',
     gameOverMsg:(sc,st)=>`You scored <b style="color:#f9c74f;font-size:1.3em">${sc}</b> points!<br>Streak: 🔥${st}`,
@@ -880,6 +913,18 @@ function setMode(m){
   document.getElementById('pieceSelector').classList.toggle('hidden',m===1);
   document.getElementById('movesCounter').classList.add('hidden');
   score=0;streak=0;lives=3;active=true;
+  document.getElementById('forkLegend').classList.add('hidden');
+  // Mode 4 (Шах): Король не може давати шах Королю
+  const ps=document.getElementById('pieceSelector');
+  if(m===4){
+    ps.classList.add('no-king');
+    if(selectedPiece==='king'){
+      selectedPiece='queen';
+      document.querySelectorAll('.btn-piece').forEach(b=>b.classList.toggle('active',b.dataset.p==='queen'));
+    }
+  } else {
+    ps.classList.remove('no-king');
+  }
   updateUI();nextPuzzle();
 }
 function setPiece(p){
@@ -985,90 +1030,103 @@ function showStars(stars,str,fruitCount,wasted,bonus){
     +T('starsTotal',fruitCount*10+bonus)+'</p>';
   document.body.appendChild(div);setTimeout(()=>div.remove(),3200);
 }
-// MODE 3
+// MODE 3 — ВИЛКА
+// Всі фрукти на дошці рівноцінні — будь-який атакований фрукт рахується синім і дає бали
 function setupMode3(){
   clearBoard();document.getElementById('movesCounter').classList.add('hidden');
   const piece=selectedPiece;const fc=2+rnd(2);
-  let forkF,forkR,fruitSqs,found=false,tries=0;
-  while(!found&&tries<500){
-    forkF=rnd(8);forkR=rnd(8);
-    const mvs=getAttacks(piece,forkF,forkR);
-    if(mvs.length>=fc){
-      // Перебираємо ВСІ комбінації — не тільки сусідні
-      const cands=shuffle(mvs).slice(0,Math.min(mvs.length,fc+5));
-      const allCombos=getCombinations(cands,fc);
-      for(const combo of allCombos){
-        const occ=new Set(combo.map(([cf,cr])=>key(cf,cr)));
-        if(combo.every(([cf,cr])=>attacksB(piece,forkF,forkR,cf,cr,occ))){
-          fruitSqs=combo;found=true;break;
-        }
+
+  let fruits=null,tries=0;
+  while(!fruits&&tries<400){
+    // Ставимо fc + 0-2 фрукти
+    const nFruits=fc+rnd(2);
+    const cands=uniqueSquares(nFruits);
+    const fruitSet=new Set(cands.map(([f,r])=>key(f,r)));
+    // Перевіряємо: чи існує хоча б одна клітинка звідки фігура б'є >= fc фруктів
+    let found=false;
+    outer: for(let pf=0;pf<8;pf++){
+      for(let pr=0;pr<8;pr++){
+        if(fruitSet.has(key(pf,pr))) continue;
+        const occ=new Set(fruitSet);
+        const atk=cands.filter(([ff,fr])=>attacksB(piece,pf,pr,ff,fr,occ));
+        if(atk.length>=fc){found=true;break outer}
       }
     }
+    if(found) fruits=cands;
     tries++;
   }
-  if(!found){nextPuzzle();return}
+  if(!fruits){nextPuzzle();return}
+
   const boardContent={};
-  fruitSqs.forEach(([f,r])=>{const fr=rf();boardContent[key(f,r)]=fr;setContent(f,r,'<span class="fruit-sym">'+fr+'</span>')});
-  // Декої: тільки ті, що не блокують вилку
-  const decoyPool=uniqueSquares(8,[...fruitSqs,[forkF,forkR]]);
-  let added=0;
-  for(const[df,dr] of decoyPool){
-    if(added>=2) break;
-    const testOcc=new Set(Object.keys(boardContent));
-    testOcc.add(key(df,dr));
-    const occ2=new Set(testOcc);occ2.delete(key(forkF,forkR));
-    if(fruitSqs.every(([cf,cr])=>attacksB(piece,forkF,forkR,cf,cr,occ2))){
-      const fr=rf();boardContent[key(df,dr)]=fr;
-      setContent(df,dr,'<span class="fruit-sym">'+fr+'</span>');
-      added++;
-    }
-  }
-  puzzle={mode:3,piece,forkF,forkR,fruitSqs,fc,boardContent,prevSel:null,prevAttacks:[],partialFound:false};
-  setInstr(T('m3instr',PIECES[piece].sym,pName(piece),fc));setFb('');
+  fruits.forEach(([f,r])=>{
+    const fr=rf();boardContent[key(f,r)]=fr;
+    setContent(f,r,'<span class="fruit-sym">'+fr+'</span>');
+  });
+
+  puzzle={mode:3,piece,fc,boardContent,fruits,prevSel:null,prevAttacks:[],partialFound:false};
+  setInstr(T('m3instr',PIECES[piece].sym,pName(piece),fc));
+  document.getElementById('forkLegend').classList.remove('hidden');
+  setFb('');
 }
+
 function handleM3(f,r){
-  const{piece,fruitSqs,fc,prevSel,prevAttacks,boardContent,partialFound}=puzzle;
+  const{piece,fc,boardContent,fruits,prevSel,prevAttacks,partialFound}=puzzle;
+
+  // ── Очищаємо попередній стан ──
   if(prevSel){
     const[pf,pr]=fromKey(prevSel);uncls(pf,pr,'selected-sq');
     const pk=key(pf,pr);
     boardContent[pk]?setContent(pf,pr,'<span class="fruit-sym">'+boardContent[pk]+'</span>'):setContent(pf,pr,'');
   }
-  prevAttacks.forEach(([af,ar])=>{uncls(af,ar,'valid-dot');uncls(af,ar,'valid-ring');uncls(af,ar,'atk-ring');uncls(af,ar,'correct')});
-  snd('move');setContent(f,r,'<span class="piece-sym bounce">'+PIECES[piece].sym+'</span>');cls(f,r,'selected-sq');
+  prevAttacks.forEach(([af,ar])=>{uncls(af,ar,'valid-dot');uncls(af,ar,'valid-ring');uncls(af,ar,'correct')});
 
-  // Будуємо зайняті клітинки: всі фрукти КРІМ клітинки куди ставимо фігуру
+  // ── Ставимо фігуру ──
+  snd('move');
+  setContent(f,r,'<span class="piece-sym bounce">'+PIECES[piece].sym+'</span>');
+  cls(f,r,'selected-sq');
+
+  // occ = всі фрукти крім клітинки де стоїть фігура
   const occ=new Set(Object.keys(boardContent));
   occ.delete(key(f,r));
 
   const allAtks=getAttacksBlocked(piece,f,r,occ);
-  const hit=fruitSqs.filter(([ff,fr])=>attacksB(piece,f,r,ff,fr,occ));
+  // Всі фрукти під боєм — ВСІ рахуються, без розрізнення
+  const hit=fruits.filter(([ff,fr])=>attacksB(piece,f,r,ff,fr,occ));
   puzzle.prevSel=key(f,r);puzzle.prevAttacks=allAtks;
-  // ── Підсвічуємо поля атаки ──
+
+  // ── Підсвічуємо атаки: фрукт → синє кільце; порожньо → крапка ──
   allAtks.forEach(([af,ar])=>{
     if(af===f&&ar===r) return;
-    const isTarget=hit.some(([hf,hr])=>hf===af&&hr===ar);
-    const hasFruit=boardContent[key(af,ar)]!==undefined;
-    if(isTarget)        cls(af,ar,'valid-ring'); // мішень — синій обрис
-    else if(hasFruit)   cls(af,ar,'atk-ring');   // декой фрукт — бурштиновий обрис (видимий!)
-    else                cls(af,ar,'valid-dot');   // порожня клітинка — синя крапка
+    boardContent[key(af,ar)]!==undefined
+      ? cls(af,ar,'valid-ring')   // фрукт під боєм — синє кільце
+      : cls(af,ar,'valid-dot');   // порожня клітинка — синя крапка
   });
+
+  // ── Результат ──
   if(hit.length>=fc){
     hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));
     const pts=20+streak*4;score+=pts;streak++;updateUI();snd('fork');
     setFb(T('m3fork',hit.length,pts),'good');setTimeout(nextPuzzle,1900);
   } else if(hit.length>=2&&!partialFound){
     hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));
-    puzzle.partialFound=true;score+=8;updateUI();snd('correct');
+    puzzle.partialFound=true;
+    const pts=hit.length*8;score+=pts;updateUI();snd('correct');
     setFb(T('m3partial',hit.length,fc),'neutral');
   } else if(hit.length>=2){
-    hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));setFb(T('m3partial2',hit.length,fc),'neutral');
+    hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));
+    setFb(T('m3partial2',hit.length,fc),'neutral');
   } else if(hit.length===1){
-    hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));streak=0;updateUI();snd('wrong');setFb(T('m3one'),'bad');
-  } else {streak=0;loseLife();if(!active)return;snd('wrong');setFb(T('m3none'),'bad')}
+    hit.forEach(([ff,fr])=>cls(ff,fr,'correct'));
+    streak=0;updateUI();snd('wrong');setFb(T('m3one'),'bad');
+  } else {
+    streak=0;loseLife();if(!active)return;snd('wrong');setFb(T('m3none'),'bad');
+  }
 }
 // MODE 4
 function setupMode4(){
   clearBoard();document.getElementById('movesCounter').classList.add('hidden');
+  // Король не може давати шах Королю — підміняємо якщо вибрано
+  if(selectedPiece==='king') selectedPiece='queen';
   const piece=selectedPiece;const kf=1+rnd(6),kr=1+rnd(6);
   setContent(kf,kr,'<span class="king-sym">👑</span>');cls(kf,kr,'enemy-sq');
   const hasChecks=!![...Array(64)].some((_,i)=>{const f=i%8,r=Math.floor(i/8);return!(f===kf&&r===kr)&&attacks(piece,f,r,kf,kr)});
