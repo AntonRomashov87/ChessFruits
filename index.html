@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🍎 Chess Fruits / Шахові Фрукти</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a4a2a'/%3E%3Ctext y='48' x='2' font-size='56' font-family='serif'%3E%E2%99%9F%3C/text%3E%3Ctext y='32' x='30' font-size='30'%3E%F0%9F%8D%8E%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -120,8 +121,15 @@ body{
   border-radius:14px;padding:10px 14px;text-align:center;
   font-size:.98em;min-height:60px;display:flex;align-items:center;
   justify-content:center;max-width:480px;width:100%;line-height:1.5;
-  backdrop-filter:blur(4px);margin-bottom:8px;
+  backdrop-filter:blur(4px);margin-bottom:8px;word-spacing:0.12em;
 }
+/* ——— PROMOTION PICKER ——— */
+.promo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center}
+.promo-box{background:linear-gradient(135deg,#1a4a2a,#2d7a42);border:3px solid #f9c74f;border-radius:22px;padding:20px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.promo-box h3{color:#f9c74f;font-size:1.4em;margin-bottom:14px}
+.promo-choices{display:flex;gap:14px;justify-content:center}
+.promo-btn{font-size:2.6em;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.3);border-radius:14px;padding:8px 14px;cursor:pointer;transition:transform .15s,background .15s}
+.promo-btn:hover{background:rgba(255,255,255,.28);transform:scale(1.15)}
 .hi{font-size:1.35em;vertical-align:middle}
 .gold{color:#f9c74f;font-weight:900}
 .red{color:#ff7070;font-weight:900}
@@ -1028,6 +1036,10 @@ function handleM2(f,r){
     setFb(T('m2status',fruit,pts,puzzle.eaten,total,puzzle.movesTaken),'good');collected=true;
   }
   setContent(f,r,'<span class="piece-sym bounce">'+PIECES[piece].sym+'</span>');cls(f,r,'piece-sq');
+  // Pawn promotion: reached rank 8 (r===7)
+  if(piece==='pawn'&&r===7){
+    setTimeout(()=>showPromotion(f,r),200);return;
+  }
   setTimeout(()=>{
     if(!fruitsLeft.size){
       const wasted=puzzle.movesTaken-puzzle.eaten;const stars=wasted===0?3:wasted<=2?2:1;
@@ -1039,6 +1051,41 @@ function handleM2(f,r){
       showMoves2();if(!collected) setFb(T('m2left',fruitsLeft.size),'neutral');
     }
   },180);
+}
+function showPromotion(pf,pr){
+  const promos=[
+    {p:'queen', sym:'♛'},
+    {p:'rook',  sym:'♜'},
+    {p:'bishop',sym:'♝'},
+    {p:'knight',sym:'♞'}
+  ];
+  const title=lang==='uk'?'Пішак досяг кінця! Обери фігуру:':'Pawn promoted! Choose a piece:';
+  const overlay=document.createElement('div');overlay.className='promo-overlay';
+  overlay.innerHTML=`<div class="promo-box"><h3>${title}</h3><div class="promo-choices">${
+    promos.map(({p,sym})=>`<button class="promo-btn" data-p="${p}">${sym}</button>`).join('')
+  }</div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelectorAll('.promo-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const chosen=btn.dataset.p;
+      overlay.remove();
+      snd('collect');
+      puzzle.piece=chosen;
+      setContent(pf,pr,'<span class="piece-sym">'+PIECES[chosen].sym+'</span>');
+      const instrName=lang==='uk'?{queen:'Ферзь',rook:'Тура',bishop:'Слон',knight:'Кінь'}[chosen]:chosen.charAt(0).toUpperCase()+chosen.slice(1);
+      setFb((lang==='uk'?'🎉 Пішак перетворився на '+instrName+'!':'🎉 Pawn became a '+instrName+'!'),'good');
+      const{fruitsLeft,eaten,total,movesTaken}=puzzle;
+      if(!fruitsLeft.size){
+        const wasted=movesTaken-eaten;const stars=wasted===0?3:wasted<=2?2:1;
+        const starsStr='⭐'.repeat(stars)+'☆'.repeat(3-stars);const bonus=[5,15,30][stars-1];
+        score+=bonus;updateUI();snd('victory');
+        showStars(stars,starsStr,eaten,wasted,bonus);
+        setFb(T('m2done',starsStr,bonus),'good');setTimeout(nextPuzzle,2800);
+      } else {
+        showMoves2();
+      }
+    });
+  });
 }
 function showStars(stars,str,fruitCount,wasted,bonus){
   const wastedTxt=wasted===0?T('starsWasted0'):T('starsWasted',wasted);
