@@ -118,11 +118,13 @@ body{
 /* ——— INSTRUCTIONS ——— */
 .instructions{
   background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.16);
-  border-radius:14px;padding:10px 14px;text-align:center;
-  font-size:.98em;min-height:60px;display:flex;align-items:center;
-  justify-content:center;max-width:480px;width:100%;line-height:1.5;
-  backdrop-filter:blur(4px);margin-bottom:8px;word-spacing:0.12em;
+  border-radius:14px;padding:12px 18px;text-align:center;
+  font-size:.96em;min-height:60px;
+  display:flex;align-items:center;justify-content:center;
+  max-width:540px;width:100%;line-height:1.6;
+  backdrop-filter:blur(4px);margin-bottom:8px;
 }
+.instructions>span{display:inline;}
 /* ——— PROMOTION PICKER ——— */
 .promo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center}
 .promo-box{background:linear-gradient(135deg,#1a4a2a,#2d7a42);border:3px solid #f9c74f;border-radius:22px;padding:20px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
@@ -368,7 +370,7 @@ const LANG = {
     m1ok:(fr,not,pts)=>`✅ Правильно! ${fr} на ${not}! +${pts}⭐`,
     m1fail:(sq,not)=>`❌ Це ${sq}. Шукай ${not}!`,
     // M2
-    m2instr:(sym,name,sq)=>`<span class="hi">${sym}</span> <b>${name}</b> на <span class="gold">${sq}</span> — Клікай куди ходити і збери всі фрукти! 🍎`,
+    m2instr:(sym,name,sq)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>&nbsp;на&nbsp;<span class="gold">${sq}</span> — Клікай куди ходити і збери всі фрукти! 🍎`,
     m2click:(sym)=>`${sym} Клікай виділені клітинки!`,
     m2wrong:'❌ Фігура так не ходить!',
     m2status:(fr,pts,eaten,total,moves)=>`${fr} +${pts}⭐ Зібрано: ${eaten}/${total} (ходів: ${moves})`,
@@ -381,14 +383,14 @@ const LANG = {
     starsBonus:(n)=>`🎁 Бонус = <b>+${n} очок</b>`,
     starsTotal:(n)=>`<b>Разом: +${n} очок</b>`,
     // M3
-    m3instr:(sym,name,fc)=>`<span class="hi">${sym}</span> <b>${name}</b>: знайди клітинку, звідки б'є <span class="gold">${fc} фрукти одразу</span> — <b>Вилка ⚔️</b>`,
+    m3instr:(sym,name,fc)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>: знайди клітинку, звідки б'є&nbsp;<span class="gold">${fc}&nbsp;фрукти одразу</span> — Вилка&nbsp;⚔️`,
     m3fork:(n,pts)=>`⚔️ ВИЛКА! Б'є ${n} фрукти! +${pts}⭐`,
     m3partial:(h,fc)=>`✅ Б'є ${h}/${fc} фрукти! Але є місце де б'є всі!`,
     m3partial2:(h,fc)=>`🎯 Б'є ${h}/${fc}. Шукай де б'є всі ${fc}!`,
     m3one:'🎯 Б\'є лише 1 фрукт. Шукай краще!',
     m3none:'❌ Не б\'є жодного! Спробуй іншу клітинку.',
     // M4
-    m4instr:(sym,name)=>`<span class="hi">${sym}</span> <b>${name}</b>: знайди клітинку звідки оголосиш <span class="gold">ШАХ</span> Королю 👑`,
+    m4instr:(sym,name)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>: знайди клітинку звідки оголосиш&nbsp;<span class="gold">ШАХ</span>&nbsp;Королю 👑`,
     m4self:'Це сам Король!',
     m4check:(sym,sq,pts)=>`⚡ ШАХ! ${sym} б'є Короля з ${sq}! +${pts}⭐`,
     m4miss:(sq)=>`❌ З ${sq} Король у безпеці!`,
@@ -399,7 +401,7 @@ const LANG = {
     m5allsafe:(fr,pts)=>`✅ ${fr} +${pts}⭐ 🎉 Всі безпечні знайдено!`,
     m5danger:(fr)=>`💀 ${fr} Небезпечно! Ворог тебе з'їв!`,
     // M6 — ЛАБІРИНТ
-    m6instr:(sym,name)=>`<span class="hi">${sym}</span> <b>${name}</b>: дістанься до <span class="gold">🍍 ананаса</span> за мінімум ходів! Уникай ⛔`,
+    m6instr:(sym,name)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>: дістанься до&nbsp;<span class="gold">🍍&nbsp;ананаса</span> за мінімум ходів! Уникай ⛔`,
     m6move:'❌ Фігура так не ходить!',
     m6wall:'⛔ Туди не можна! Це заборонена клітинка.',
     m6click:(sym)=>`${sym} Клікай виділені клітинки!`,
@@ -427,7 +429,7 @@ const LANG = {
     m1instr:(fr,not)=>`Find <span class="hi">${fr}</span> and click square <span class="gold">${not}</span>`,
     m1ok:(fr,not,pts)=>`✅ Correct! ${fr} is on ${not}! +${pts}⭐`,
     m1fail:(sq,not)=>`❌ That's ${sq}. Find ${not}!`,
-    m2instr:(sym,name,sq)=>`<span class="hi">${sym}</span> <b>${name}</b> on <span class="gold">${sq}</span> — Click to move and collect all fruits! 🍎`,
+    m2instr:(sym,name,sq)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>&nbsp;on&nbsp;<span class="gold">${sq}</span> — Click to move and collect all fruits! 🍎`,
     m2click:(sym)=>`${sym} Click the highlighted squares!`,
     m2wrong:'❌ The piece can\'t move there!',
     m2status:(fr,pts,eaten,total,moves)=>`${fr} +${pts}⭐ Collected: ${eaten}/${total} (moves: ${moves})`,
@@ -439,13 +441,13 @@ const LANG = {
     starsFruits:(n,pts)=>`🍎 ${n} × 10 = <b>+${pts} pts</b>`,
     starsBonus:(n)=>`🎁 Bonus = <b>+${n} pts</b>`,
     starsTotal:(n)=>`<b>Total: +${n} pts</b>`,
-    m3instr:(sym,name,fc)=>`<span class="hi">${sym}</span> <b>${name}</b>: find the square where the piece attacks <span class="gold">${fc} fruits at once</span> — <b>Fork ⚔️</b>`,
+    m3instr:(sym,name,fc)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>: find the square where it attacks&nbsp;<span class="gold">${fc}&nbsp;fruits at once</span> — Fork&nbsp;⚔️`,
     m3fork:(n,pts)=>`⚔️ FORK! Attacks ${n} fruits! +${pts}⭐`,
     m3partial:(h,fc)=>`✅ Attacks ${h}/${fc} fruits! But there's a square hitting all!`,
     m3partial2:(h,fc)=>`🎯 ${h}/${fc} again. Find where it hits all ${fc}!`,
     m3one:'🎯 Only 1 fruit. Look for a better square!',
     m3none:'❌ Hits nothing! Try another square.',
-    m4instr:(sym,name)=>`<span class="hi">${sym}</span> <b>${name}</b>: find the square to give <span class="gold">CHECK</span> to the King 👑`,
+    m4instr:(sym,name)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>: find the square to give&nbsp;<span class="gold">CHECK</span>&nbsp;to the King 👑`,
     m4self:'That IS the King!',
     m4check:(sym,sq,pts)=>`⚡ CHECK! ${sym} attacks the King from ${sq}! +${pts}⭐`,
     m4miss:(sq)=>`❌ From ${sq} the King is safe!`,
@@ -455,7 +457,7 @@ const LANG = {
     m5allsafe:(fr,pts)=>`✅ ${fr} +${pts}⭐ 🎉 All safe fruits found!`,
     m5danger:(fr)=>`💀 ${fr} Danger! The enemy took you!`,
     // M6 — MAZE
-    m6instr:(sym,name)=>`<span class="hi">${sym}</span> <b>${name}</b>: reach the <span class="gold">🍍 pineapple</span> in minimum moves! Avoid ⛔`,
+    m6instr:(sym,name)=>`<span class="hi">${sym}</span>&nbsp;<b>${name}</b>: reach the&nbsp;<span class="gold">🍍&nbsp;pineapple</span> in minimum moves! Avoid ⛔`,
     m6move:'❌ The piece can\'t move there!',
     m6wall:'⛔ Blocked! That\'s a forbidden square.',
     m6click:(sym)=>`${sym} Click the highlighted squares!`,
@@ -966,7 +968,7 @@ function updateUI(){
   document.getElementById('streak').textContent=streak;
   document.getElementById('lives').innerHTML='❤️'.repeat(Math.max(0,lives))+'🖤'.repeat(Math.max(0,3-lives));
 }
-function setInstr(html){document.getElementById('instructions').innerHTML=html}
+function setInstr(html){document.getElementById('instructions').innerHTML='<span>'+html+'</span>'}
 function setFb(msg,type=''){const el=document.getElementById('feedback');el.textContent=msg;el.className='feedback '+(type||'')}
 function setMovesUI(n){
   const mc=document.getElementById('movesCounter');
